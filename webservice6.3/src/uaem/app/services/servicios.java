@@ -12,6 +12,7 @@ import java.io.FileOutputStream;
 import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.sql.SQLException;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
@@ -51,7 +52,9 @@ import org.dspace.authorize.AuthorizeException;
 @WebService(serviceName = "servicios")
 public class servicios {
 
-    @WebMethod(operationName = "deposito")
+    private ItemImportServiceImpl importar;
+
+	@WebMethod(operationName = "deposito")
     public String deposito(
             @WebParam(name = "id") long id,
             @WebParam(name = "titulo") String titulo,
@@ -205,7 +208,7 @@ public class servicios {
                 TextOut.write("\nEntra a registrar PRIMER registro - " + folioAnterior);
             }
             TextOut.close();//
-            ItemImportServiceImpl importar = null ;
+            importar = null;
             //ItemImport importar = new ItemImport();
             EPerson myEPerson = null;
             Random r = new Random();
@@ -299,20 +302,34 @@ public class servicios {
             PrintWriter mapOut = new PrintWriter(new FileWriter(outFile));
 
             //Collection[] mycollections = {(Collection) handleService.resolveToObject(c, "20.500.11799/107520")};
-            @SuppressWarnings("unchecked")
-			List <Collection> mycollections = (List<Collection>) handleService.resolveToObject(c, "20.500.11799/107520");
-            c.turnOffAuthorisationSystem();
-
-            Item item = importar.addItem(c, mycollections, PATH + "/" + PATH_RAMDOM, NAME_ITEM, mapOut, false);
-            readOnlyCache.clear();
             
-            if (mapOut != null) {
-                mapOut.flush();
-                mapOut.close();
-            }
-            c.complete();
+            
+            List<Collection> mycollections = new ArrayList<>();
+            String nomTxtComp;
+            
+            try {
+				 Collection mycollection = (Collection) handleService.resolveToObject(c, "20.500.11799/107520");
+				 mycollections.add(mycollection);
+				 c.turnOffAuthorisationSystem();
+		         Item item = importar.addItem(c, mycollections, PATH + "/" + PATH_RAMDOM, NAME_ITEM, mapOut, false);
+		         
+		         readOnlyCache.clear();
+		            
+		            if (mapOut != null) {
+		                mapOut.flush();
+		                mapOut.close();
+		            }
+		            c.complete();
 
-            String nomTxtComp = item.getHandle();
+		            nomTxtComp = item.getHandle();
+			 }catch (SQLException e) {  
+				 mapOut.close();
+                return false;
+            }
+            
+           
+            
+           
             TextOut = new FileWriter(archivoTxt, true);//escribe al final del archivo
             TextOut.write("----handle::" + nomTxtComp);
             TextOut.close();
