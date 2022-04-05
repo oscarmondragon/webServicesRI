@@ -21,7 +21,7 @@
       The location of the DSpace home directory
     </description>
     <param-name>dspace.dir</param-name>
-    <param-value>/home/dspace/dspace6.3</param-value>
+    <param-value>/files/dspace</param-value>
   </context-param>
   
   <!--  configures the locations that Spring configurations are searched for. -->

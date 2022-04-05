@@ -70,7 +70,9 @@ public class servicioCVU {
 	public String depositoDocumento(@WebParam(name = "idCVU") long idCVU,
 			@WebParam(name = "palabrasCve") String[] palabras, @WebParam(name = "desc_res") String descripcion,
 			@WebParam(name = "titulo") String titulo, @WebParam(name = "formato") String formato,
-			@WebParam(name = "archivo") byte [] archivo) {
+			@WebParam(name = "archivo") String archivo) {
+		// EL parametro archivo se recibe como String por que nos envian una cadena en
+		// base64
 		// Verifica si existe archivo para crearlo o seguir escribiendo en el
 		final String rutaTxtCVU = "/files/dspace/services/import/importCVU/CVUArchRecibidos.txt";
 		final String rutaImportCVU = "/files/dspace/services/import/importCVU/";// ruta para archivo temporal
@@ -118,35 +120,33 @@ public class servicioCVU {
 				TextOut.write("Titulo_" + idCVU + "." + formato);
 				TextOut.close();
 				String cadenaCodificada;
-				
+
 				/*
 				 * try{ cadenaCodificada = Base64.getEncoder().encodeToString(archivo); } catch
 				 * (Exception e) { // TODO: handle exception return
 				 * "Error al codificar a base64"; }
 				 */
-			
-
-				
 
 				// Crea el pdf
-				 OutputStream out = null;	
-				String archivoSalida = "Titulo_" + idCVU + "." + formato; // titulo del archivo
-				 out = new FileOutputStream(PATH_dirIdCVU + "/" + archivoSalida);
-				 BufferedOutputStream outputStream = new BufferedOutputStream(out);
-				 outputStream.write(archivo);
-				 outputStream.close();
-				
-				 
-				 //recibir string en  base64
-				 //String archivoSalida = "Titulo_" + idCVU + "." + formato; // titulo del archivo
-				//	File file = new File(PATH_dirIdCVU + "/" + archivoSalida); // ruta del archivo
 				/*
-				 * try (FileOutputStream fos = new FileOutputStream(file);) { byte[] archivo64 =
-				 * Base64.getDecoder().decode(archivo); //decodificamos el archivo
-				 * fos.write(archivo64); // se crea el archivo en el servidor fos.close(); }
-				 * catch (Exception e) { e.printStackTrace(); return
-				 * "Error en  decodificación del archivo"; }
+				 * OutputStream out = null; String archivoSalida = "Titulo_" + idCVU + "." +
+				 * formato; // titulo del archivo out = new FileOutputStream(PATH_dirIdCVU + "/"
+				 * + archivoSalida); BufferedOutputStream outputStream = new
+				 * BufferedOutputStream(out); outputStream.write(archivo); outputStream.close();
 				 */
+
+				// recibir string en base64
+				String archivoSalida = "Titulo_" + idCVU + "." + formato; // titulo del archivo
+				File file = new File(PATH_dirIdCVU + "/" + archivoSalida); // ruta del archivo
+
+				try (FileOutputStream fos = new FileOutputStream(file);) {
+					byte[] archivo64 = Base64.getDecoder().decode(archivo); // decodificamos el archivo
+					fos.write(archivo64);// se crea el archivo en el servidor fos.close();
+				} catch (Exception e) {
+					e.printStackTrace();
+					return
+					"Error en  decodificación del archivo";
+				}
 
 				boolean banderaDirectorioT = true;
 				String PATH = PATH_dirIdCVU + "/dublin_core.xml";
@@ -241,7 +241,7 @@ public class servicioCVU {
 				// llama proceso registro para depositar en RI
 				if (regAlmacenado) {
 					Boolean registroR = registro(rutaTxtCVU, idCvu, fechaEmb, motivoA);
-					
+
 				} else {
 					return "ERROR DE REGISTRO en depositoMetadatos no existe archivoCVU.txt";
 				}
@@ -717,16 +717,15 @@ public class servicioCVU {
 			File outFile = new File(MAP_FILE);
 			PrintWriter mapOut = new PrintWriter(new FileWriter(outFile));
 
-			
 			List<Collection> mycollections = new ArrayList<>();
-           				
-			 try {
-				 Collection mycollection = (Collection) handleService.resolveToObject(c, "20.500.11799/95053");
-				 mycollections.add(mycollection);
-			 }catch (SQLException e) {  
-				 mapOut.close();
-                 return false;
-             }
+
+			try {
+				Collection mycollection = (Collection) handleService.resolveToObject(c, "20.500.11799/95053");
+				mycollections.add(mycollection);
+			} catch (SQLException e) {
+				mapOut.close();
+				return false;
+			}
 
 			// Collection[] mycollections = {(Collection) handleService.resolveToObject(c,
 			// "20.500.11799/95053")};

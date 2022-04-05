@@ -13,6 +13,7 @@ import java.io.OutputStream;
 import java.io.PrintWriter;
 import java.sql.SQLException;
 import java.util.ArrayList;
+import java.util.Base64;
 import java.util.List;
 import java.util.Random;
 import java.util.logging.Level;
@@ -52,7 +53,6 @@ import org.dspace.authorize.AuthorizeException;
 @WebService(serviceName = "servicios")
 public class servicios {
 
-    private ItemImportServiceImpl importar;
 
 	@WebMethod(operationName = "deposito")
     public String deposito(
@@ -66,8 +66,9 @@ public class servicios {
             @WebParam(name = "tipo") String tipo,
             @WebParam(name = "item") String itemFin,
             @WebParam(name = "formato") String formato,
-            @WebParam(name = "archivo") byte[] archivo) {
-
+            @WebParam(name = "archivo") String archivo) {
+		// EL parametro archivo se recibe como String por que nos envian una cadena en base64
+		
         //Verifica si existe archivo para crearlo o seguir escribiendo en el
         final String PathArchivoSecme = "/files/dspace/services/import/2019/archivoSecme.txt";
         final String rutaImport = "/files/dspace/services/import/2019/";//ruta para archivo temporal
@@ -111,7 +112,8 @@ public class servicios {
                         regAlmacenado = registraItem(folioAnterior, itemFinT, rutaImport + "directorioTemporal", c, comp);
                         break;
                     } else if ((Long.parseLong(folioAnterior) == id) && (tituloAnt.equalsIgnoreCase(titulo) )) {//si es el mismo idFolio
-                        regAlmacenado = archivoTxtComp(id, archivo, formato, rutaImport);
+                       
+                    	regAlmacenado = archivoTxtComp(id, archivo, formato, rutaImport);
                         FileWriter TextOut = new FileWriter(archivoReg, true);//escribe al final del archivo
                         TextOut.write("\nID llegada igual " + id + " ultimo ID " + folioAnterior);
                         TextOut.close();
@@ -208,7 +210,7 @@ public class servicios {
                 TextOut.write("\nEntra a registrar PRIMER registro - " + folioAnterior);
             }
             TextOut.close();//
-            importar = null;
+            ItemImportServiceImpl importar = new ItemImportServiceImpl();
             //ItemImport importar = new ItemImport();
             EPerson myEPerson = null;
             Random r = new Random();
@@ -310,26 +312,26 @@ public class servicios {
             try {
 				 Collection mycollection = (Collection) handleService.resolveToObject(c, "20.500.11799/107520");
 				 mycollections.add(mycollection);
-				 c.turnOffAuthorisationSystem();
-		         Item item = importar.addItem(c, mycollections, PATH + "/" + PATH_RAMDOM, NAME_ITEM, mapOut, false);
-		         
-		         readOnlyCache.clear();
-		            
-		            if (mapOut != null) {
-		                mapOut.flush();
-		                mapOut.close();
-		            }
-		            c.complete();
-
-		            nomTxtComp = item.getHandle();
+				 
 			 }catch (SQLException e) {  
 				 mapOut.close();
                 return false;
             }
             
-           
+            c.turnOffAuthorisationSystem();
             
-           
+	         Item item = importar.addItem(c, mycollections, PATH + "/" + PATH_RAMDOM, NAME_ITEM, mapOut, false);
+	         
+	         nomTxtComp = item.getHandle();
+	         
+	         readOnlyCache.clear();
+	            
+	            if (mapOut != null) {
+	                mapOut.flush();
+	                mapOut.close();
+	            }
+	            c.complete();
+
             TextOut = new FileWriter(archivoTxt, true);//escribe al final del archivo
             TextOut.write("----handle::" + nomTxtComp);
             TextOut.close();
@@ -391,7 +393,7 @@ public class servicios {
     boolean creaDirectorioTemporal(long id, String titulo, String[] autor,
             String fecha, String editorial, String[] palabras,
             String descripcion, String tipo, String itemFin,
-            String formato, byte[] archivo, String ruta
+            String formato, String archivo, String ruta
     ) {
         boolean banderaDirectorioT = false;
         try {
@@ -478,7 +480,7 @@ public class servicios {
         return banderaDirectorioT;
     }
 
-    boolean archivoTxtComp(long id, byte[] archivo, String formato, String ruta) {
+    boolean archivoTxtComp(long id, String archivo, String formato, String ruta) {
         //"/files/dspace/services/import/directorioTemporal"
         String PathContentsTemp = ruta + "directorioTemporal/contents";
         String nomTxtComp = "";
@@ -520,22 +522,24 @@ public class servicios {
         }
     }
 
-    String creaTxtCompleto(long id, String formato, String ruta, byte[] archivo, int i) {
-        try {
-            OutputStream out = null;
-            String archivoSalida = "secme-" + id + "_" + i + formato;
-            out = new FileOutputStream(ruta + "/" + archivoSalida);
-            BufferedOutputStream outputStream = new BufferedOutputStream(out);
-            outputStream.write(archivo);
-            outputStream.close();
-            return archivoSalida;
-        } catch (FileNotFoundException ex) {
-            Logger.getLogger(servicios.class.getName()).log(Level.SEVERE, null, ex);
-            return null;
-        } catch (IOException ex) {
-            Logger.getLogger(servicios.class.getName()).log(Level.SEVERE, null, ex);
-            return null;
-        }
+    String creaTxtCompleto(long id, String formato, String ruta, String archivo, int i) {
+        OutputStream out = null;
+		String archivoSalida = "secme-" + id + "_" + i + formato;
+		
+		File file = new File(ruta + "/" + archivoSalida);
+		//out = new FileOutputStream(ruta + "/" + archivoSalida);
+		//BufferedOutputStream outputStream = new BufferedOutputStream(out);
+		//outputStream.write(archivo);
+		//outputStream.close();
+		try (FileOutputStream fos = new FileOutputStream(file);) {
+			byte[] archivo64 = Base64.getDecoder().decode(archivo); // decodificamos el archivo
+			fos.write(archivo64);// se crea el archivo en el servidor fos.close();
+		} catch (Exception e) {
+			e.printStackTrace();
+			return
+			"Error en  decodificación del archivo";
+		}
+		return archivoSalida;
     }
 
     boolean llenaArchivoTemporal(long id, String itemFin,String titulo, String ruta) {
